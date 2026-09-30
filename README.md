@@ -57,6 +57,10 @@ Running from source: `.venv\Scripts\python -m otoscope_win`. Tests: `.venv\Scrip
 | `storage.py` | Folders and `otoscope-YYYYMMDD-HHMMSS-mmm` file names, as on Android. |
 | `ui/` | PySide6 (Qt) pages, fullscreen window, and the Qt bridge that decodes JPEGs off the GUI thread. |
 
-The protocol reference is `docs/i4season-protocol.md` in the parent project, and the rbeilvert/otoscope#39 description.
+The protocol reference is [docs/i4season-protocol.md](docs/i4season-protocol.md), reverse-engineered from the Soulear app. [tools/i4season_probe.py](tools/i4season_probe.py) is the standard-library command-line client the protocol was first verified with: `python tools/i4season_probe.py` streams for 15 s and saves JPEGs. The Android implementation is rbeilvert/otoscope#39.
+
+## License
+
+GPL-3.0-or-later, like the Android app [Otoscope](https://github.com/rbeilvert/otoscope) this is derived from. Not affiliated with the camera vendors or the Soulear app publisher.
 
 Tests run offscreen and don't touch the real Wi-Fi. A fake camera on localhost covers the full flow: device info, streaming, rotation, LED, photo, H.264 video, fullscreen and disconnect.
