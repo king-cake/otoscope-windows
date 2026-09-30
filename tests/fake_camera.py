@@ -26,8 +26,10 @@ def devinfo_payload(battery: int = 80) -> bytes:
 
 
 class FakeCamera:
-    def __init__(self, cmd_port: int = 0, video_cmd_port: int = 0, jpeg: bytes = JPEG) -> None:
+    def __init__(self, cmd_port: int = 0, video_cmd_port: int = 0, jpeg: bytes = JPEG, stream: bool = True) -> None:
         self.jpeg = jpeg
+        # stream=False behaves like a firewall eating the video: control only.
+        self.stream = stream
         self.cmd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.cmd.bind(("127.0.0.1", cmd_port))
         self.vcmd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -85,7 +87,7 @@ class FakeCamera:
                     port = struct.unpack_from("<H", req.payload, 0)[0]
                     self._video_dest = ("127.0.0.1", port)
                     self._reply(s, addr, req)
-            if self._video_dest and time.monotonic() >= next_frame:
+            if self.stream and self._video_dest and time.monotonic() >= next_frame:
                 next_frame = time.monotonic() + 0.05
                 chunks = [self.jpeg[i:i + 1000] for i in range(0, len(self.jpeg), 1000)]
                 for i, chunk in enumerate(chunks):

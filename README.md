@@ -19,7 +19,7 @@ Keyboard shortcuts: **Space** photo, **R** start/stop video, **L** light, **F11*
 
 1. Switch on the otoscope and start `Otoscope.exe`. No installation needed.
 2. Pick your `Soulear-…` network and click **Verbinden**.
-3. On the very first connection Windows asks whether Otoscope may use the network. **Allow it on public networks too**, because Windows classifies the camera's Wi-Fi as public. Without that, the firewall blocks the video and the app shows "Keine Videodaten".
+3. **Firewall, first time only.** The camera answers commands, but Windows silently drops its video: it arrives unsolicited on a UDP port, and Windows doesn't prompt for UDP. After a few seconds without video, the app shows a banner with **„Firewall-Freigabe einrichten"**. One admin confirmation adds a narrow inbound rule named *Otoscope (Kamera-Video)*: this .exe only, UDP only, local subnet only. The rule is tied to the file's path, so after moving the .exe, just click the button again.
 
 While connected, the laptop has no internet: the camera's Wi-Fi is a closed network.
 
@@ -51,6 +51,7 @@ Running from source: `.venv\Scripts\python -m otoscope_win`. Tests: `.venv\Scrip
 | `wifi.py` | Windows Native Wifi API via ctypes (`wlanapi.dll`). Scans, joins through a temporary open profile in manual mode, restores the previous connection. Language-independent, unlike parsing `netsh`. |
 | `compose.py` | Draws the square crop, rotation, circle mask and caption. Shared by the live view and the captures. |
 | `recorder.py` | H.264 MP4 through PyAV's bundled libx264. Frames carry their real capture time because the camera's frame rate drifts. |
+| `firewall.py` | Detects and, after one UAC prompt, adds the inbound UDP allow rule for the video stream (elevated PowerShell, `-EncodedCommand`, so no quoting pitfalls). |
 | `storage.py` | Folders and `otoscope-YYYYMMDD-HHMMSS-mmm` file names, as on Android. |
 | `ui/` | PySide6 (Qt) pages, fullscreen window, and the Qt bridge that decodes JPEGs off the GUI thread. |
 

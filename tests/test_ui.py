@@ -100,3 +100,22 @@ def test_full_flow(window):
     win._disconnect("Getrennt.")
     assert win._stack.currentWidget() is win.connect_page
     assert win._session is None
+
+
+def test_firewall_banner_when_video_is_blocked(qapp, monkeypatch):
+    import otoscope_win.ui.main_window as mw
+
+    monkeypatch.setattr(mw, "NO_VIDEO_S", 0.5)
+    cam = FakeCamera(stream=False).start()
+    win = MainWindow(
+        wifi_factory=no_wifi,
+        session_factory=lambda bridge: CameraSession(bridge, "127.0.0.1", None, cam.cmd_port, cam.video_cmd_port),
+    )
+    win.show()
+    try:
+        win._connect_done("Soulear-test1", None)
+        assert pump(lambda: win.camera.firewall_banner_visible(), timeout=4)
+        assert win._session is not None  # still connected, waiting for the fix
+    finally:
+        win.close()
+        cam.stop()

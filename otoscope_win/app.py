@@ -20,6 +20,7 @@ QLabel#model { font-size: 16px; font-weight: 600; }
 QLabel#section { color: #8fa4c8; font-weight: 600; margin-top: 8px; }
 QLabel#diagnostics { color: #7d8594; font-size: 11px; }
 QFrame#panel { background: #20242c; border-radius: 10px; padding: 8px; }
+QFrame#banner { background: #4a3413; border: 1px solid #a8741f; border-radius: 8px; padding: 6px; }
 QPushButton { padding: 8px 12px; border-radius: 6px; background: #2a2f38; border: 1px solid #3a404c; }
 QPushButton:hover { background: #333a45; }
 QPushButton:disabled { color: #5c6370; background: #22262d; }

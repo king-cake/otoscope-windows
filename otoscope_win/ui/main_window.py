@@ -11,7 +11,7 @@ from PySide6.QtCore import QSettings, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QImage, QKeyEvent, QKeySequence, QPalette, QShortcut
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QToolButton, QVBoxLayout, QWidget
 
-from .. import storage
+from .. import firewall, storage
 from ..compose import compose_capture
 from ..protocol import DevInfo
 from ..recorder import Recording
@@ -124,6 +124,8 @@ class MainWindow(QMainWindow):
         self.camera.open_latest.connect(lambda: self._open(self._latest_path))
         self.camera.open_pictures.connect(lambda: self._open(storage.pictures_dir()))
         self.camera.open_videos.connect(lambda: self._open(storage.videos_dir()))
+        self.camera.firewall_fix_requested.connect(self._fix_firewall)
+        self._firewall_busy = False
 
         self._stack = QStackedWidget()
         self._stack.addWidget(self.connect_page)
@@ -208,6 +210,7 @@ class MainWindow(QMainWindow):
         self.camera.set_light(True)
         self.camera.set_diagnostics("")
         self.camera.view.clear("Warte auf Kamera …")
+        self.camera.hide_firewall_banner()
         self._session = self._session_factory(self._bridge)
         self._session.start()
         self._connected_at = time.monotonic()
@@ -235,6 +238,8 @@ class MainWindow(QMainWindow):
     # -- session events -------------------------------------------------------------
 
     def _on_frame(self, image: QImage, rotation: float) -> None:
+        if self._last_image is None and self.camera.firewall_banner_visible() and not self._firewall_busy:
+            self.camera.hide_firewall_banner()
         self._last_image = image
         self._last_rotation = rotation
         self._fps_frames += 1
@@ -275,14 +280,32 @@ class MainWindow(QMainWindow):
         if info is None and elapsed > NO_ANSWER_S:
             self.camera.view.clear("Die Kamera antwortet nicht.\nIst sie eingeschaltet und in Reichweite?")
         elif info is not None and since is None and elapsed > NO_VIDEO_S:
-            self.camera.view.clear(
-                "Keine Videodaten.\nBitte in der Windows-Firewall eingehende Verbindungen\n"
-                "für Otoscope erlauben (auch in öffentlichen Netzwerken).")
+            self.camera.view.clear("Keine Videodaten – die Windows-Firewall blockiert das Kamerabild.")
+            if not self.camera.firewall_banner_visible():
+                self.camera.show_firewall_banner(
+                    "Die Kamera antwortet, aber Windows lässt ihr Videobild nicht durch. "
+                    "Die Freigabe gilt nur für diese App und nur für das lokale Kamera-Netz; "
+                    "sie braucht einmal eine Administrator-Bestätigung.")
         elif since is not None and since > LOST_S:
             log.warning("camera lost (%.0f s without video)", since)
             self._disconnect("Verbindung zur Kamera verloren.")
 
     # -- controls ---------------------------------------------------------------------
+
+    def _fix_firewall(self) -> None:
+        if self._firewall_busy:
+            return
+        self._firewall_busy = True
+        self.camera.show_firewall_banner("Bitte die Windows-Abfrage bestätigen …", button_enabled=False)
+        self._bg.run(firewall.add_rule_elevated, self._firewall_done)
+
+    def _firewall_done(self, _result, error: Exception | None) -> None:
+        self._firewall_busy = False
+        if error:
+            self.camera.show_firewall_banner(f"{error} Du kannst es erneut versuchen.")
+            return
+        self.camera.show_firewall_banner(
+            "Freigabe eingerichtet. Das Bild sollte in wenigen Sekunden erscheinen.", button_enabled=False)
 
     def _if_streaming(self, action) -> None:
         if self._session is not None:

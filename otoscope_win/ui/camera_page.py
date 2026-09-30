@@ -33,6 +33,7 @@ class CameraPage(QWidget):
     open_latest = Signal()
     open_pictures = Signal()
     open_videos = Signal()
+    firewall_fix_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -122,6 +123,20 @@ class CameraPage(QWidget):
         panel_widget.setLayout(panel)
         panel_widget.setFixedWidth(300)
 
+        # Shown when no video arrives: the firewall is the usual culprit.
+        self._banner_text = QLabel()
+        self._banner_text.setWordWrap(True)
+        self._banner_button = QPushButton("Firewall-Freigabe einrichten")
+        self._banner_button.setObjectName("primary")
+        self._banner_button.clicked.connect(self.firewall_fix_requested)
+        banner_layout = QHBoxLayout()
+        banner_layout.addWidget(self._banner_text, 1)
+        banner_layout.addWidget(self._banner_button)
+        self._banner = QFrame()
+        self._banner.setObjectName("banner")
+        self._banner.setLayout(banner_layout)
+        self._banner.hide()
+
         body = QHBoxLayout()
         body.addWidget(self.view, 1)
         body.addWidget(panel_widget)
@@ -129,6 +144,7 @@ class CameraPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 16)
         layout.addLayout(header)
+        layout.addWidget(self._banner)
         layout.addLayout(body, 1)
 
     # -- state from the window -----------------------------------------------
@@ -178,6 +194,17 @@ class CameraPage(QWidget):
                 96, 96, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             self._latest.setIcon(QIcon(pix))
         self._latest.setToolTip(f"Öffnen: {path.name}" if path else "Letzte Aufnahme öffnen")
+
+    def show_firewall_banner(self, text: str, button_enabled: bool = True) -> None:
+        self._banner_text.setText(text)
+        self._banner_button.setEnabled(button_enabled)
+        self._banner.show()
+
+    def hide_firewall_banner(self) -> None:
+        self._banner.hide()
+
+    def firewall_banner_visible(self) -> bool:
+        return self._banner.isVisible()
 
     def set_diagnostics(self, text: str) -> None:
         self._diagnostics.setText(text)
