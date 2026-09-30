@@ -1,0 +1,59 @@
+# Otoscope for Windows
+
+A Windows desktop app for **Soulear (i4season) Wi-Fi otoscopes**, e.g. the Hopefox Find T. It's a companion to the Android app [Otoscope](https://github.com/rbeilvert/otoscope) and speaks the same reverse-engineered protocol. No vendor software needed. The UI is in German.
+
+## Features
+
+- **Kamera verbinden**: lists nearby `Soulear-XXXXX` access points, joins the one you pick, and switches the laptop back to its previous Wi-Fi when you disconnect or close the app.
+- Live image in a circle, **auto-rotated** from the camera's accelerometer. Auto-rotation can be switched off.
+- **Licht** (ring light) on/off.
+- **Spiegeln** for self-examination. Only the live view is mirrored, never what gets saved.
+- **Foto** (JPEG) and **Video** (H.264 MP4) to `Bilder\Otoscope` and `Videos\Otoscope`. Captures are orientation-corrected and masked to the circle on black, like the Android app.
+- **Beschriftung**: a caption (e.g. "Linkes Ohr") burnt into the bottom-left corner of every capture.
+- **Vollbild** via F11 or a double-click; Esc leaves it.
+- Model, battery and frame-rate readout.
+
+Keyboard shortcuts: **Space** photo, **R** start/stop video, **L** light, **F11** fullscreen, **Esc** leave fullscreen.
+
+## Using it
+
+1. Switch on the otoscope and start `Otoscope.exe`. No installation needed.
+2. Pick your `Soulear-…` network and click **Verbinden**.
+3. On the very first connection Windows asks whether Otoscope may use the network. **Allow it on public networks too**, because Windows classifies the camera's Wi-Fi as public. Without that, the firewall blocks the video and the app shows "Keine Videodaten".
+
+While connected, the laptop has no internet: the camera's Wi-Fi is a closed network.
+
+If SmartScreen warns about an unknown app, choose "Weitere Informationen", then "Trotzdem ausführen". The .exe isn't code-signed.
+
+On Windows 11 24H2 and later, the network list stays empty unless desktop apps may use location: *Einstellungen › Datenschutz und Sicherheit › Standort › Desktop-Apps den Zugriff erlauben*. The app offers a button for that page.
+
+Log file: `%LOCALAPPDATA%\OtoscopeWin\otoscope.log`.
+
+## Building
+
+Requires Python 3.13 (other 3.11+ versions should work too).
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build.ps1
+```
+
+The script creates `.venv`, installs the dependencies, runs the tests and writes `dist\Otoscope.exe`: one self-contained file.
+
+Running from source: `.venv\Scripts\python -m otoscope_win`. Tests: `.venv\Scripts\python -m pytest`.
+
+## Design
+
+| Module | Role |
+|---|---|
+| `protocol.py` | Control-datagram codec (`0xFFEEFFEE` header, device info, open video, LED) and the accelerometer decode. A port of `I4seasonProtocol.kt`. |
+| `assembler.py` | Reassembles the 16- or 28-byte-header UDP JPEG chunks into frames. A port of `FrameAssembler.kt`. |
+| `session.py` | Camera connection: a control thread (device info, keepalive via re-sent "open video", battery poll, LED) and a video thread. UI-agnostic, reports through callbacks. |
+| `wifi.py` | Windows Native Wifi API via ctypes (`wlanapi.dll`). Scans, joins through a temporary open profile in manual mode, restores the previous connection. Language-independent, unlike parsing `netsh`. |
+| `compose.py` | Draws the square crop, rotation, circle mask and caption. Shared by the live view and the captures. |
+| `recorder.py` | H.264 MP4 through PyAV's bundled libx264. Frames carry their real capture time because the camera's frame rate drifts. |
+| `storage.py` | Folders and `otoscope-YYYYMMDD-HHMMSS-mmm` file names, as on Android. |
+| `ui/` | PySide6 (Qt) pages, fullscreen window, and the Qt bridge that decodes JPEGs off the GUI thread. |
+
+The protocol reference is `docs/i4season-protocol.md` in the parent project, and the rbeilvert/otoscope#39 description.
+
+Tests run offscreen and don't touch the real Wi-Fi. A fake camera on localhost covers the full flow: device info, streaming, rotation, LED, photo, H.264 video, fullscreen and disconnect.
