@@ -111,7 +111,7 @@ class Recording:
                 image, rotation, caption, at = item
                 if writer is None:
                     # Sized from the first frame, like the Android recorder.
-                    width, height = video_size(image.width(), image.height(), self.full)
+                    width, height = video_size(image.width(), image.height(), self.full, rotation)
                     writer = VideoWriter(self.path, width, height)
                     log.info("recording %dx%d to %s", width, height, self.path)
                 composed = compose(image, rotation, caption, self.full, (writer.width, writer.height))

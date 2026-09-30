@@ -76,7 +76,11 @@ class MainWindow(QMainWindow):
 
         self._settings = QSettings()  # organisation/app name set in app.main()
         self._auto_rotate = self._settings.value("autoRotate", True, type=bool)
-        self._mirror = self._settings.value("mirror", True, type=bool)
+        self._mirror_h = self._settings.value("mirror", True, type=bool)
+        self._mirror_v = self._settings.value("mirrorVertical", False, type=bool)
+        # Manual quarter turns on top of (or, in whole-image mode, instead of)
+        # the accelerometer angle: 0, 90, 180 or 270.
+        self._turn = self._settings.value("turn", 0, type=int) % 360
         self._caption = self._settings.value("caption", "", type=str)
         self._full_view = self._settings.value("fullView", False, type=bool)
 
@@ -113,7 +117,9 @@ class MainWindow(QMainWindow):
             lambda: QDesktopServices.openUrl(QUrl("ms-settings:privacy-location")))
 
         self.camera = CameraPage()
-        self.camera.set_toggles(self._auto_rotate, self._mirror, self._caption, self._full_view)
+        self.camera.set_toggles(self._auto_rotate, self._mirror_h, self._mirror_v, self._caption,
+                                self._full_view, self._turn)
+        self.camera.turn_requested.connect(self._turn_by)
         self.camera.full_view_toggled.connect(self._set_full_view)
         self.camera.photo_requested.connect(self._take_photo)
         self.camera.record_toggled.connect(self._toggle_recording)
@@ -141,6 +147,8 @@ class MainWindow(QMainWindow):
             ("R", self._toggle_recording),
             ("L", self.camera.toggle_light),
             ("K", self.camera.toggle_full_view),
+            ("Left", lambda: self._turn_by(-90)),
+            ("Right", lambda: self._turn_by(90)),
             ("F11", self._toggle_fullscreen),
         ):
             shortcut = QShortcut(QKeySequence(key), self)
@@ -260,8 +268,10 @@ class MainWindow(QMainWindow):
             self.camera.view.clear("Warte auf Bild …")
 
     def _effective_rotation(self) -> float:
-        # The whole-image view never rotates; the circle follows the switch.
-        return self._last_rotation if self._auto_rotate and not self._full_view else 0.0
+        # The accelerometer only drives the circle; the manual quarter turns
+        # apply in both views.
+        auto = self._last_rotation if self._auto_rotate and not self._full_view else 0.0
+        return (auto + self._turn) % 360.0
 
     def _check_health(self) -> None:
         now = time.monotonic()
@@ -364,12 +374,20 @@ class MainWindow(QMainWindow):
         if self._last_image is not None:
             self._on_frame(self._last_image, self._last_rotation)
 
-    def _set_mirror(self, on: bool) -> None:
-        self._mirror = on
-        self._settings.setValue("mirror", on)
-        self.camera.view.set_mirror(on)
+    def _set_mirror(self, horizontal: bool, vertical: bool) -> None:
+        self._mirror_h, self._mirror_v = horizontal, vertical
+        self._settings.setValue("mirror", horizontal)
+        self._settings.setValue("mirrorVertical", vertical)
+        self.camera.view.set_mirror(horizontal, vertical)
         if self._fullscreen:
-            self._fullscreen.view.set_mirror(on)
+            self._fullscreen.view.set_mirror(horizontal, vertical)
+
+    def _turn_by(self, degrees: int) -> None:
+        self._turn = (self._turn + degrees) % 360
+        self._settings.setValue("turn", self._turn)
+        self.camera.set_turn(self._turn)
+        if self._last_image is not None:
+            self._on_frame(self._last_image, self._last_rotation)
 
     def _set_full_view(self, on: bool) -> None:
         self._full_view = on
@@ -392,7 +410,7 @@ class MainWindow(QMainWindow):
             self._fullscreen.close()
             return
         window = FullscreenWindow()
-        window.view.set_mirror(self._mirror)
+        window.view.set_mirror(self._mirror_h, self._mirror_v)
         window.view.set_caption(self._caption)
         window.view.set_full(self._full_view)
         if self._last_image is not None:

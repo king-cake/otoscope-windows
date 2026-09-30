@@ -26,7 +26,8 @@ class CameraPage(QWidget):
     record_toggled = Signal()
     light_toggled = Signal(bool)
     auto_rotate_toggled = Signal(bool)
-    mirror_toggled = Signal(bool)
+    mirror_toggled = Signal(bool, bool)  # horizontal, vertical
+    turn_requested = Signal(int)  # -90 or +90
     caption_changed = Signal(str)
     fullscreen_requested = Signal()
     disconnect_requested = Signal()
@@ -69,8 +70,25 @@ class CameraPage(QWidget):
         self._light.toggled.connect(self.light_toggled)
         self._auto_rotate = QCheckBox("Automatische Drehung")
         self._auto_rotate.toggled.connect(self.auto_rotate_toggled)
-        self._mirror = QCheckBox("Spiegeln (Selbstuntersuchung)")
-        self._mirror.toggled.connect(self.mirror_toggled)
+        self._mirror_h = QCheckBox("Horizontal spiegeln (links/rechts)")
+        self._mirror_v = QCheckBox("Vertikal spiegeln (oben/unten)")
+        for box in (self._mirror_h, self._mirror_v):
+            box.setToolTip("Nur die Anzeige; Fotos und Videos werden nie gespiegelt.")
+            box.toggled.connect(lambda _: self.mirror_toggled.emit(
+                self._mirror_h.isChecked(), self._mirror_v.isChecked()))
+
+        turn_left = QPushButton("↺ 90°")
+        turn_left.setToolTip("Bild 90° nach links drehen (←)")
+        turn_left.clicked.connect(lambda: self.turn_requested.emit(-90))
+        turn_right = QPushButton("↻ 90°")
+        turn_right.setToolTip("Bild 90° nach rechts drehen (→)")
+        turn_right.clicked.connect(lambda: self.turn_requested.emit(90))
+        self._turn_label = QLabel()
+        self._turn_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        turn_row = QHBoxLayout()
+        turn_row.addWidget(turn_left)
+        turn_row.addWidget(self._turn_label, 1)
+        turn_row.addWidget(turn_right)
         self._full_view = QCheckBox("Ganzes Bild, ohne Kreis  (K)")
         self._full_view.setToolTip(
             "Zeigt und speichert das komplette Kamerabild inklusive Ecken, ohne Kreisausschnitt "
@@ -119,7 +137,9 @@ class CameraPage(QWidget):
         panel.addWidget(self._light)
         panel.addWidget(self._full_view)
         panel.addWidget(self._auto_rotate)
-        panel.addWidget(self._mirror)
+        panel.addLayout(turn_row)
+        panel.addWidget(self._mirror_h)
+        panel.addWidget(self._mirror_v)
         panel.addWidget(fullscreen)
         panel.addWidget(_section("Gespeichert"))
         panel.addLayout(latest_row)
@@ -171,8 +191,21 @@ class CameraPage(QWidget):
     def toggle_light(self) -> None:
         self._light.toggle()
 
-    def set_toggles(self, auto_rotate: bool, mirror: bool, caption: str, full_view: bool = False) -> None:
-        for box, value in ((self._auto_rotate, auto_rotate), (self._mirror, mirror), (self._full_view, full_view)):
+    def set_toggles(
+        self,
+        auto_rotate: bool,
+        mirror_h: bool,
+        mirror_v: bool,
+        caption: str,
+        full_view: bool = False,
+        turn: int = 0,
+    ) -> None:
+        for box, value in (
+            (self._auto_rotate, auto_rotate),
+            (self._mirror_h, mirror_h),
+            (self._mirror_v, mirror_v),
+            (self._full_view, full_view),
+        ):
             box.blockSignals(True)
             box.setChecked(value)
             box.blockSignals(False)
@@ -180,9 +213,13 @@ class CameraPage(QWidget):
         self._caption.setText(caption)
         self._caption.blockSignals(False)
         self._auto_rotate.setEnabled(not full_view)
-        self.view.set_mirror(mirror)
+        self.set_turn(turn)
+        self.view.set_mirror(mirror_h, mirror_v)
         self.view.set_caption(caption)
         self.view.set_full(full_view)
+
+    def set_turn(self, degrees: int) -> None:
+        self._turn_label.setText(f"Drehung {degrees}°")
 
     def toggle_full_view(self) -> None:
         self._full_view.toggle()

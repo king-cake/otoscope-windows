@@ -91,6 +91,20 @@ def test_full_flow(window):
     assert win.camera._auto_rotate.isEnabled()
     assert pump(lambda: win.camera.view._rotation > 300)
 
+    # Quarter turns add to the auto angle and wrap; the label follows.
+    win._turn_by(90)
+    assert pump(lambda: win.camera.view._rotation == pytest.approx((344.6 + 90) % 360, abs=0.1))
+    win._turn_by(-90)
+    win._turn_by(-90)
+    assert win._turn == 270
+    assert "270" in win.camera._turn_label.text()
+    win._turn_by(90)
+
+    # Both mirror axes reach the view.
+    win.camera._mirror_v.setChecked(True)
+    assert (win.camera.view._mirror_h, win.camera.view._mirror_v) == (win._mirror_h, True)
+    win.camera._mirror_v.setChecked(False)
+
     # Video for about a second.
     win._toggle_recording()
     assert pump(lambda: win._recording and win._recording.frames_written >= 5)

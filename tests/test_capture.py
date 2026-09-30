@@ -61,14 +61,52 @@ def test_caption_is_burnt_in_bottom_left(qapp):
     assert any(plain.pixelColor(x, y) != captioned.pixelColor(x, y) for x, y in region)
 
 
-def test_full_capture_keeps_whole_frame_unrotated(qapp):
+def test_full_capture_keeps_whole_frame(qapp):
+    from otoscope_win.compose import compose
+
+    out = compose(half_red_image(), rotation=0, caption="", full=True)
+    assert (out.width(), out.height()) == (640, 480)
+    # Nothing is masked: corners carry image, left stays red.
+    assert colour_at(out, 2, 2) == "red"
+    assert colour_at(out, 637, 477) == "blue"
+
+
+def test_full_capture_quarter_turn_swaps_size(qapp):
     from otoscope_win.compose import compose
 
     out = compose(half_red_image(), rotation=90, caption="", full=True)
-    assert (out.width(), out.height()) == (640, 480)
-    # Rotation is ignored and nothing is masked: corners carry image, left stays red.
-    assert colour_at(out, 2, 2) == "red"
-    assert colour_at(out, 637, 477) == "blue"
+    assert (out.width(), out.height()) == (480, 640)
+    # Clockwise: the left (red) half ends up on top.
+    assert colour_at(out, 240, 5) == "red"
+    assert colour_at(out, 240, 634) == "blue"
+    left = compose(half_red_image(), rotation=270, caption="", full=True)
+    assert colour_at(left, 240, 634) == "red"
+
+
+def test_vertical_mirror_flips_top_and_bottom(qapp):
+    from PySide6.QtCore import QRectF
+
+    from otoscope_win.compose import draw_camera
+
+    img = QImage(480, 480, QImage.Format.Format_RGB32)
+    img.fill(QColor("blue"))
+    p = QPainter(img)
+    p.fillRect(0, 0, 480, 240, QColor("red"))  # top half red
+    p.end()
+    out = QImage(480, 480, QImage.Format.Format_RGB32)
+    p = QPainter(out)
+    draw_camera(p, img, QRectF(0, 0, 480, 480), 0, QColor("black"), mirror_v=True)
+    p.end()
+    assert colour_at(out, 240, 100) == "blue"
+    assert colour_at(out, 240, 380) == "red"
+
+
+def test_turned_video_size():
+    from otoscope_win.compose import video_size
+
+    assert video_size(640, 480, full=True, rotation=90) == (480, 640)
+    assert video_size(640, 480, full=True, rotation=180) == (640, 480)
+    assert video_size(640, 480, full=False, rotation=90) == (480, 480)
 
 
 def test_video_size_modes():
