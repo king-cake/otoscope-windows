@@ -1,6 +1,6 @@
 # i4season Wi-Fi otoscope protocol (SoulEar)
 
-Reverse-engineered from `libWifiCamera.so` in **SoulEar 1.0.120** (`com.i4season.bkCamera_soulear`, arm64), decompiled with Ghidra 12.1.4. Target hardware: Hopefox *Find T*. **Status: verified 2026-09-30 on a Find T** (vendor `YPC`, product `BK7231U-XRH-FBPRO`, fw `HKV41B`, SSID `Soulear-318eb`, camera at `192.168.1.1`): discovery, devinfo, licence get and OpenVideo work; 640×480 MJPEG at ~17 fps. `tools/i4season_probe.py` is a stdlib-only test client built from these notes.
+Reverse-engineered from `libWifiCamera.so` in **SoulEar 1.0.120** (`com.i4season.bkCamera_soulear`, arm64), decompiled with Ghidra 12.1.4. Target hardware: Hopefox *Find T*. **Status: verified 2026-09-30 on a Find T** (vendor `YPC`, product `BK7231U-XRH-FBPRO`, fw `HKV41B`, SSID `Soulear-318eb`, camera at `192.168.1.1`): discovery, devinfo, licence get and OpenVideo work; MJPEG at ~17 fps. The JPEGs are 480×480 even though the video header says 640×480. `tools/i4season_probe.py` is a stdlib-only test client built from these notes.
 
 The Java layer (`com.jni.WifiCamera`) is a thin JNI wrapper around `caInit()`/`caStart()`. All networking is native. The library speaks three protocol families at once. This document covers the main one (`newcamera_*` / `pro_handle`). The other two are listed at the end.
 
@@ -63,7 +63,7 @@ The app accepts a reply when magic, `seq` and `cmd` match. It retries up to 20 t
 ### Verified on the Find T
 
 - **LED**: write `11 01 64` = on, `11 00 00` = off. The camera stores and echoes any brightness 0..100, but the LED doesn't dim. The vendor app only ever sends 100 or 0.
-- **Resolution** is fixed at 640×480. The resolution list (`0x000D`) and resolution set (`0x000E`) are only used when `capacity & 0x40`. The Find T reports `capacity = 0x03`, so the vendor library refuses (`cameraConfGet error3`).
+- **Resolution** is fixed (480×480 JPEGs; the header claims 640×480). The resolution list (`0x000D`) and resolution set (`0x000E`) are only used when `capacity & 0x40`. The Find T reports `capacity = 0x03`, so the vendor library refuses (`cameraConfGet error3`).
 
 ## Session flow (as done by `pro_handle`)
 
