@@ -61,6 +61,24 @@ def test_caption_is_burnt_in_bottom_left(qapp):
     assert any(plain.pixelColor(x, y) != captioned.pixelColor(x, y) for x, y in region)
 
 
+def test_full_capture_keeps_whole_frame_unrotated(qapp):
+    from otoscope_win.compose import compose
+
+    out = compose(half_red_image(), rotation=90, caption="", full=True)
+    assert (out.width(), out.height()) == (640, 480)
+    # Rotation is ignored and nothing is masked: corners carry image, left stays red.
+    assert colour_at(out, 2, 2) == "red"
+    assert colour_at(out, 637, 477) == "blue"
+
+
+def test_video_size_modes():
+    from otoscope_win.compose import video_size
+
+    assert video_size(640, 480, full=False) == (480, 480)
+    assert video_size(640, 480, full=True) == (640, 480)
+    assert video_size(650, 490, full=True) == (640, 480)
+
+
 def test_file_name_matches_android():
     at = datetime(2026, 8, 24, 19, 30, 12, 45000)
     assert storage.file_name(False, at) == "otoscope-20260824-193012-045.jpg"
@@ -86,6 +104,17 @@ def test_recording_writes_playable_h264(qapp, tmp_path):
         assert (stream.width, stream.height) == (480, 480)
         frames = sum(1 for _ in container.decode(stream))
     assert frames == rec.frames_written
+
+
+def test_full_recording_is_4_by_3(qapp, tmp_path):
+    rec = Recording(tmp_path / "full.mp4", full=True)
+    for _ in range(6):
+        rec.submit(half_red_image(), rotation=45.0, caption="")
+        time.sleep(0.05)
+    path = rec.stop()
+    with av.open(str(path)) as container:
+        stream = container.streams.video[0]
+        assert (stream.width, stream.height) == (640, 480)
 
 
 def test_recording_without_frames_reports_error(qapp, tmp_path):

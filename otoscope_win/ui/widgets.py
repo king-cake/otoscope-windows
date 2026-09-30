@@ -12,7 +12,7 @@ from PySide6.QtGui import QImage, QMouseEvent, QPainter, QPaintEvent
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from ..assembler import Frame
-from ..compose import draw_camera, draw_caption
+from ..compose import draw_camera, draw_caption, draw_full, fit_rect
 from ..protocol import DevInfo
 
 log = logging.getLogger(__name__)
@@ -93,7 +93,8 @@ class Background(QObject):
 
 
 class CameraView(QWidget):
-    """The round camera image. Mirroring applies here only, never to captures."""
+    """The camera image: round (default) or the whole frame. Mirroring applies
+    here only, never to captures."""
 
     double_clicked = Signal()
 
@@ -103,6 +104,7 @@ class CameraView(QWidget):
         self._rotation = 0.0
         self._mirror = True
         self._caption = ""
+        self._full = False
         self._placeholder = "Warte auf Bild …"
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumSize(240, 240)
@@ -125,16 +127,25 @@ class CameraView(QWidget):
         self._caption = text
         self.update()
 
+    def set_full(self, on: bool) -> None:
+        """Whole frame, fitted and unrotated, instead of the rotated circle."""
+        self._full = on
+        self.update()
+
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: N802 - Qt API
         painter = QPainter(self)
         background = self.palette().window().color()
         painter.fillRect(self.rect(), background)
-        side = min(self.width(), self.height())
-        rect = QRectF((self.width() - side) / 2, (self.height() - side) / 2, side, side)
         if self._image is None:
             painter.setPen(self.palette().placeholderText().color())
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._placeholder)
+        elif self._full:
+            rect = fit_rect(self._image, QRectF(self.rect()))
+            draw_full(painter, self._image, rect, self._mirror)
+            draw_caption(painter, rect, self._caption)
         else:
+            side = min(self.width(), self.height())
+            rect = QRectF((self.width() - side) / 2, (self.height() - side) / 2, side, side)
             draw_camera(painter, self._image, rect, self._rotation, self._mirror, background)
             draw_caption(painter, rect, self._caption)
         painter.end()

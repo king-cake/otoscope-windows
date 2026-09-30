@@ -12,7 +12,7 @@ from PySide6.QtGui import QCloseEvent, QDesktopServices, QImage, QKeyEvent, QKey
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QToolButton, QVBoxLayout, QWidget
 
 from .. import firewall, storage
-from ..compose import compose_capture
+from ..compose import compose
 from ..protocol import DevInfo
 from ..recorder import Recording
 from ..session import CameraSession
@@ -78,6 +78,7 @@ class MainWindow(QMainWindow):
         self._auto_rotate = self._settings.value("autoRotate", True, type=bool)
         self._mirror = self._settings.value("mirror", True, type=bool)
         self._caption = self._settings.value("caption", "", type=str)
+        self._full_view = self._settings.value("fullView", False, type=bool)
 
         self._bg = Background()
         self._wifi: Wifi | None = None
@@ -112,7 +113,8 @@ class MainWindow(QMainWindow):
             lambda: QDesktopServices.openUrl(QUrl("ms-settings:privacy-location")))
 
         self.camera = CameraPage()
-        self.camera.set_toggles(self._auto_rotate, self._mirror, self._caption)
+        self.camera.set_toggles(self._auto_rotate, self._mirror, self._caption, self._full_view)
+        self.camera.full_view_toggled.connect(self._set_full_view)
         self.camera.photo_requested.connect(self._take_photo)
         self.camera.record_toggled.connect(self._toggle_recording)
         self.camera.light_toggled.connect(self._set_light)
@@ -138,6 +140,7 @@ class MainWindow(QMainWindow):
             ("Space", self._take_photo),
             ("R", self._toggle_recording),
             ("L", self.camera.toggle_light),
+            ("K", self.camera.toggle_full_view),
             ("F11", self._toggle_fullscreen),
         ):
             shortcut = QShortcut(QKeySequence(key), self)
@@ -257,7 +260,8 @@ class MainWindow(QMainWindow):
             self.camera.view.clear("Warte auf Bild …")
 
     def _effective_rotation(self) -> float:
-        return self._last_rotation if self._auto_rotate else 0.0
+        # The whole-image view never rotates; the circle follows the switch.
+        return self._last_rotation if self._auto_rotate and not self._full_view else 0.0
 
     def _check_health(self) -> None:
         now = time.monotonic()
@@ -316,7 +320,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Noch kein Bild.", 3000)
             return
         try:
-            still = compose_capture(self._last_image, self._effective_rotation(), self._caption)
+            still = compose(self._last_image, self._effective_rotation(), self._caption, self._full_view)
             path = storage.save_photo(still)
         except OSError as e:
             self.statusBar().showMessage(f"Foto konnte nicht gespeichert werden: {e}", 6000)
@@ -329,7 +333,7 @@ class MainWindow(QMainWindow):
         if self._recording:
             self._stop_recording()
         else:
-            self._recording = Recording(storage.new_video_path())
+            self._recording = Recording(storage.new_video_path(), full=self._full_view)
             self.camera.set_recording(True, 0)
             self.statusBar().showMessage("Videoaufnahme läuft …")
 
@@ -344,7 +348,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Video konnte nicht gespeichert werden: {e}", 6000)
             return
         self._latest_path = path
-        thumb = compose_capture(self._last_image, self._effective_rotation(), self._caption) \
+        thumb = compose(self._last_image, self._effective_rotation(), self._caption, recording.full) \
             if self._last_image is not None else None
         self.camera.set_latest(path, thumb)
         self.statusBar().showMessage(f"Video gespeichert: {path}", 5000)
@@ -367,6 +371,15 @@ class MainWindow(QMainWindow):
         if self._fullscreen:
             self._fullscreen.view.set_mirror(on)
 
+    def _set_full_view(self, on: bool) -> None:
+        self._full_view = on
+        self._settings.setValue("fullView", on)
+        self.camera.view.set_full(on)
+        if self._fullscreen:
+            self._fullscreen.view.set_full(on)
+        if self._last_image is not None:
+            self._on_frame(self._last_image, self._last_rotation)
+
     def _set_caption(self, text: str) -> None:
         self._caption = text
         self._settings.setValue("caption", text)
@@ -381,6 +394,7 @@ class MainWindow(QMainWindow):
         window = FullscreenWindow()
         window.view.set_mirror(self._mirror)
         window.view.set_caption(self._caption)
+        window.view.set_full(self._full_view)
         if self._last_image is not None:
             window.view.set_frame(self._last_image, self._effective_rotation())
         window.closed.connect(self._fullscreen_closed)

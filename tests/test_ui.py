@@ -78,6 +78,19 @@ def test_full_flow(window):
     photos = list(tmp.glob("otoscope-*.jpg"))
     assert len(photos) == 1
 
+    # Whole-image mode: no rotation, auto-rotate greyed out, 4:3 photo.
+    win.camera.toggle_full_view()
+    assert win.camera.view._full and win.camera.view._rotation == 0.0
+    assert not win.camera._auto_rotate.isEnabled()
+    for old in photos:
+        old.unlink()
+    win._take_photo()
+    (full_photo,) = tmp.glob("otoscope-*.jpg")
+    assert QImage(str(full_photo)).size().toTuple() == (640, 480)
+    win.camera.toggle_full_view()
+    assert win.camera._auto_rotate.isEnabled()
+    assert pump(lambda: win.camera.view._rotation > 300)
+
     # Video for about a second.
     win._toggle_recording()
     assert pump(lambda: win._recording and win._recording.frames_written >= 5)

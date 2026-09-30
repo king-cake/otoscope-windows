@@ -7,6 +7,9 @@ as the Android app (CaptureGeometry.kt / FrameComposer.kt):
 - positive angles turn clockwise;
 - the live view may be mirrored, saved captures never are;
 - the caption sits bottom-left, sized relative to the square.
+
+In whole-image mode (no circle) the full frame is shown and saved instead,
+fitted and unrotated; the caption rule is the same.
 """
 
 from __future__ import annotations
@@ -26,7 +29,19 @@ def crop_side(width: int, height: int) -> int:
 
 def video_side(width: int, height: int) -> int:
     """Rounded down to a multiple of 16: H.264 macroblocks."""
-    return max(16, (crop_side(width, height) // 16) * 16)
+    return _macroblock(crop_side(width, height))
+
+
+def video_size(width: int, height: int, full: bool) -> tuple[int, int]:
+    """Frame size of a recording: the circle's square, or the whole frame."""
+    if full:
+        return _macroblock(width), _macroblock(height)
+    side = video_side(width, height)
+    return side, side
+
+
+def _macroblock(n: int) -> int:
+    return max(16, (n // 16) * 16)
 
 
 def draw_camera(
@@ -66,15 +81,38 @@ def draw_camera(
     painter.restore()
 
 
+def fit_rect(image: QImage, rect: QRectF) -> QRectF:
+    """The largest rectangle with the image's aspect ratio, centred in [rect]."""
+    if image.width() <= 0 or image.height() <= 0:
+        return QRectF()
+    scale = min(rect.width() / image.width(), rect.height() / image.height())
+    w, h = image.width() * scale, image.height() * scale
+    return QRectF(rect.center().x() - w / 2, rect.center().y() - h / 2, w, h)
+
+
+def draw_full(painter: QPainter, image: QImage, rect: QRectF, mirror: bool) -> None:
+    """The whole frame, fitted into [rect], never rotated. Mirroring is for the
+    live view only; captures pass mirror=False."""
+    painter.save()
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+    if mirror:
+        painter.translate(rect.center())
+        painter.scale(-1, 1)
+        painter.translate(-rect.center())
+    painter.drawImage(rect, image)
+    painter.restore()
+
+
 def draw_caption(painter: QPainter, rect: QRectF, text: str) -> None:
     text = text.strip()
     if not text:
         return
-    side = rect.width()
+    # Sized from the shorter side, so a 4:3 frame and the circle's square match.
+    side = min(rect.width(), rect.height())
     margin = side * CAPTION_MARGIN_RATIO
     font = QFont(painter.font())
     font.setPixelSize(max(1, round(side * CAPTION_TEXT_RATIO)))
-    available = side - 2 * margin
+    available = rect.width() - 2 * margin
     width = QFontMetricsF(font).horizontalAdvance(text)
     if width > available:
         # A long label shrinks to fit instead of running off the edge.
@@ -89,6 +127,29 @@ def draw_caption(painter: QPainter, rect: QRectF, text: str) -> None:
     painter.setPen(Qt.GlobalColor.white)
     painter.drawText(baseline, text)
     painter.restore()
+
+
+def compose_full_capture(image: QImage, caption: str, size: tuple[int, int] | None = None) -> QImage:
+    """A saved still or video frame in whole-image mode: the full frame,
+    unrotated, never mirrored, with the caption. RGBA8888 like compose_capture."""
+    width, height = size or (image.width(), image.height())
+    out = QImage(width, height, QImage.Format.Format_RGBA8888)
+    out.fill(Qt.GlobalColor.black)
+    painter = QPainter(out)
+    try:
+        rect = QRectF(0, 0, width, height)
+        draw_full(painter, image, rect, mirror=False)
+        draw_caption(painter, rect, caption)
+    finally:
+        painter.end()
+    return out
+
+
+def compose(image: QImage, rotation: float, caption: str, full: bool, size: tuple[int, int] | None = None) -> QImage:
+    """Either capture style; [size] is the output size (square in circle mode)."""
+    if full:
+        return compose_full_capture(image, caption, size)
+    return compose_capture(image, rotation, caption, size[0] if size else None)
 
 
 def compose_capture(image: QImage, rotation: float, caption: str, side: int | None = None) -> QImage:

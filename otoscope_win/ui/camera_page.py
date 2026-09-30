@@ -34,6 +34,7 @@ class CameraPage(QWidget):
     open_pictures = Signal()
     open_videos = Signal()
     firewall_fix_requested = Signal()
+    full_view_toggled = Signal(bool)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -70,6 +71,11 @@ class CameraPage(QWidget):
         self._auto_rotate.toggled.connect(self.auto_rotate_toggled)
         self._mirror = QCheckBox("Spiegeln (Selbstuntersuchung)")
         self._mirror.toggled.connect(self.mirror_toggled)
+        self._full_view = QCheckBox("Ganzes Bild, ohne Kreis  (K)")
+        self._full_view.setToolTip(
+            "Zeigt und speichert das komplette Kamerabild inklusive Ecken, ohne Kreisausschnitt "
+            "und ohne automatische Drehung.")
+        self._full_view.toggled.connect(self._on_full_view)
 
         self._caption = QLineEdit()
         self._caption.setPlaceholderText("Beschriftung, z. B. „Linkes Ohr“")
@@ -111,6 +117,7 @@ class CameraPage(QWidget):
         panel.addWidget(self._caption)
         panel.addWidget(_section("Kamera"))
         panel.addWidget(self._light)
+        panel.addWidget(self._full_view)
         panel.addWidget(self._auto_rotate)
         panel.addWidget(self._mirror)
         panel.addWidget(fullscreen)
@@ -164,16 +171,26 @@ class CameraPage(QWidget):
     def toggle_light(self) -> None:
         self._light.toggle()
 
-    def set_toggles(self, auto_rotate: bool, mirror: bool, caption: str) -> None:
-        for box, value in ((self._auto_rotate, auto_rotate), (self._mirror, mirror)):
+    def set_toggles(self, auto_rotate: bool, mirror: bool, caption: str, full_view: bool = False) -> None:
+        for box, value in ((self._auto_rotate, auto_rotate), (self._mirror, mirror), (self._full_view, full_view)):
             box.blockSignals(True)
             box.setChecked(value)
             box.blockSignals(False)
         self._caption.blockSignals(True)
         self._caption.setText(caption)
         self._caption.blockSignals(False)
+        self._auto_rotate.setEnabled(not full_view)
         self.view.set_mirror(mirror)
         self.view.set_caption(caption)
+        self.view.set_full(full_view)
+
+    def toggle_full_view(self) -> None:
+        self._full_view.toggle()
+
+    def _on_full_view(self, on: bool) -> None:
+        # Rotation only applies to the circle, so its switch greys out here.
+        self._auto_rotate.setEnabled(not on)
+        self.full_view_toggled.emit(on)
 
     def set_recording(self, recording: bool, elapsed_s: float = 0.0) -> None:
         self._record.setChecked(recording)

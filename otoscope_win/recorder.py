@@ -19,7 +19,7 @@ from pathlib import Path
 import av
 from PySide6.QtGui import QImage
 
-from .compose import compose_capture, video_side
+from .compose import compose, video_size
 
 log = logging.getLogger(__name__)
 
@@ -27,15 +27,16 @@ _TIME_BASE = Fraction(1, 1000)
 
 
 class VideoWriter:
-    """Square RGBA frames in, MP4 out. Not thread-safe; one writer thread."""
+    """RGBA frames in, MP4 out. Not thread-safe; one writer thread."""
 
-    def __init__(self, path: Path, side: int) -> None:
+    def __init__(self, path: Path, width: int, height: int) -> None:
         self.path = path
-        self.side = side
+        self.width = width
+        self.height = height
         self._container = av.open(str(path), mode="w")
         self._stream = self._container.add_stream("libx264", rate=30)
-        self._stream.width = side
-        self._stream.height = side
+        self._stream.width = width
+        self._stream.height = height
         self._stream.pix_fmt = "yuv420p"
         self._stream.time_base = _TIME_BASE
         self._stream.codec_context.time_base = _TIME_BASE
@@ -46,7 +47,7 @@ class VideoWriter:
         if t_ms <= self._last_pts:
             return  # pts must strictly increase
         self._last_pts = t_ms
-        rgba_frame = av.VideoFrame.from_bytes(bytes(rgba.constBits()), self.side, self.side, format="rgba")
+        rgba_frame = av.VideoFrame.from_bytes(bytes(rgba.constBits()), self.width, self.height, format="rgba")
         frame = rgba_frame.reformat(format="yuv420p")
         frame.pts = t_ms
         frame.time_base = _TIME_BASE
@@ -60,10 +61,13 @@ class VideoWriter:
 
 
 class Recording:
-    """One clip in progress. Feed it with :meth:`submit`, end with :meth:`stop`."""
+    """One clip in progress. Feed it with :meth:`submit`, end with :meth:`stop`.
+    [full] picks the whole-image style over the circle; it's fixed for the clip
+    because the frame size can't change mid-file."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, full: bool = False) -> None:
         self.path = path
+        self.full = full
         self.started = time.monotonic()
         self.frames_written = 0
         self.error: str | None = None
@@ -107,9 +111,10 @@ class Recording:
                 image, rotation, caption, at = item
                 if writer is None:
                     # Sized from the first frame, like the Android recorder.
-                    writer = VideoWriter(self.path, video_side(image.width(), image.height()))
-                    log.info("recording %dx%d to %s", writer.side, writer.side, self.path)
-                composed = compose_capture(image, rotation, caption, writer.side)
+                    width, height = video_size(image.width(), image.height(), self.full)
+                    writer = VideoWriter(self.path, width, height)
+                    log.info("recording %dx%d to %s", width, height, self.path)
+                composed = compose(image, rotation, caption, self.full, (writer.width, writer.height))
                 writer.write(composed, int((at - self.started) * 1000))
                 self.frames_written += 1
         except Exception as e:  # noqa: BLE001

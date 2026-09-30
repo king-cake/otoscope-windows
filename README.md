@@ -6,6 +6,7 @@ A Windows desktop app for **Soulear (i4season) Wi-Fi otoscopes**, e.g. the Hopef
 
 - **Kamera verbinden**: lists nearby `Soulear-XXXXX` access points, joins the one you pick, and switches the laptop back to its previous Wi-Fi when you disconnect or close the app.
 - Live image in a circle, **auto-rotated** from the camera's accelerometer. Auto-rotation can be switched off.
+- **Ganzes Bild** (key K): the whole frame, corners included, with no circle and no rotation. Photos and videos then save it the same way. The Find T sends 480×480 JPEGs (the packet header claims 640×480), so the circle only costs the corners.
 - **Licht** (ring light) on/off.
 - **Spiegeln** for self-examination. Only the live view is mirrored, never what gets saved.
 - **Foto** (JPEG) and **Video** (H.264 MP4) to `Bilder\Otoscope` and `Videos\Otoscope`. Captures are orientation-corrected and masked to the circle on black, like the Android app.
@@ -13,7 +14,7 @@ A Windows desktop app for **Soulear (i4season) Wi-Fi otoscopes**, e.g. the Hopef
 - **Vollbild** via F11 or a double-click; Esc leaves it.
 - Model, battery and frame-rate readout.
 
-Keyboard shortcuts: **Space** photo, **R** start/stop video, **L** light, **F11** fullscreen, **Esc** leave fullscreen.
+Keyboard shortcuts: **Space** photo, **R** start/stop video, **L** light, **K** whole image / circle, **F11** fullscreen, **Esc** leave fullscreen.
 
 ## Using it
 
