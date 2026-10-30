@@ -188,8 +188,18 @@ class CameraPage(QWidget):
         self._light.setText("Licht an  (L)" if on else "Licht aus  (L)")
         self._light.blockSignals(False)
 
+    def set_light_available(self, available: bool) -> None:
+        """Cameras without a controllable light grey the button out."""
+        self._light.setEnabled(available)
+        if not available:
+            self._light.blockSignals(True)
+            self._light.setChecked(False)
+            self._light.setText("Kein Licht")
+            self._light.blockSignals(False)
+
     def toggle_light(self) -> None:
-        self._light.toggle()
+        if self._light.isEnabled():
+            self._light.toggle()
 
     def set_toggles(
         self,

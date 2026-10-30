@@ -43,6 +43,8 @@ class SessionListener(Protocol):
 
 
 class CameraSession:
+    supports_led = True
+
     def __init__(
         self,
         listener: SessionListener,

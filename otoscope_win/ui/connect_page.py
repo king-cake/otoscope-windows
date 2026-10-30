@@ -27,7 +27,7 @@ class ConnectPage(QWidget):
         title.setObjectName("title")
         intro = QLabel(
             "Schalte das Otoskop ein. Die App sucht nach WLAN-Netzen, die mit "
-            "„Soulear-“ beginnen, und wechselt beim Verbinden in das Kamera-WLAN. "
+            "„Soulear-“ oder „HNDEC_“ beginnen, und wechselt beim Verbinden in das Kamera-WLAN. "
             "Beim Trennen kehrt der Laptop in dein vorheriges WLAN zurück."
         )
         intro.setWordWrap(True)

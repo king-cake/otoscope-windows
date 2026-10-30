@@ -47,7 +47,7 @@ def window(qapp, tmp_path, monkeypatch):
     cam = FakeCamera(jpeg=real_jpeg()).start()
     win = MainWindow(
         wifi_factory=no_wifi,
-        session_factory=lambda bridge: CameraSession(bridge, "127.0.0.1", None, cam.cmd_port, cam.video_cmd_port),
+        session_factory=lambda bridge, ssid: CameraSession(bridge, "127.0.0.1", None, cam.cmd_port, cam.video_cmd_port),
     )
     win._settings.clear()
     win.show()
@@ -136,7 +136,7 @@ def test_firewall_banner_when_video_is_blocked(qapp, monkeypatch):
     cam = FakeCamera(stream=False).start()
     win = MainWindow(
         wifi_factory=no_wifi,
-        session_factory=lambda bridge: CameraSession(bridge, "127.0.0.1", None, cam.cmd_port, cam.video_cmd_port),
+        session_factory=lambda bridge, ssid: CameraSession(bridge, "127.0.0.1", None, cam.cmd_port, cam.video_cmd_port),
     )
     win.show()
     try:

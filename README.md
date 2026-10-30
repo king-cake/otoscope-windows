@@ -1,6 +1,13 @@
 # Otoscope for Windows
 
-A Windows desktop app for **Soulear (i4season) Wi-Fi otoscopes**, e.g. the Hopefox Find T. It's a companion to the Android app [Otoscope](https://github.com/rbeilvert/otoscope) and speaks the same reverse-engineered protocol. No vendor software needed. The UI is in German.
+A Windows desktop app for Wi-Fi otoscopes: **Soulear (i4season)**, e.g. the Hopefox Find T, and **HND NE3** (Beken, `HNDEC_…`). It's a companion to the Android app [Otoscope](https://github.com/rbeilvert/otoscope) and speaks the same reverse-engineered protocols. No vendor software needed. The UI is in German.
+
+| Camera | Wi-Fi name | Light | Battery | Protocol |
+|---|---|---|---|---|
+| Soulear / Find T | `Soulear-…` | yes | yes | [docs/i4season-protocol.md](docs/i4season-protocol.md) |
+| HND NE3 (Beken) | `HNDEC_…` | no | no | [docs/beken-protocol.md](docs/beken-protocol.md) |
+
+The app tells them apart by the network name. Other `HNDEC_` cameras (a Bouffalo-based NE3 at `192.168.169.1`) are not supported here.
 
 ## Features
 
@@ -20,8 +27,8 @@ Keyboard shortcuts: **Space** photo, **R** start/stop video, **L** light, **K** 
 ## Using it
 
 1. Switch on the otoscope and start `Otoscope.exe`. No installation needed.
-2. Pick your `Soulear-…` network and click **Verbinden**.
-3. **Firewall, first time only.** The camera answers commands, but Windows silently drops its video: it arrives unsolicited on a UDP port, and Windows doesn't prompt for UDP. After a few seconds without video, the app shows a banner with **„Firewall-Freigabe einrichten"**. One admin confirmation adds a narrow inbound rule named *Otoscope (Kamera-Video)*: this .exe only, UDP only, local subnet only. The rule is tied to the file's path, so after moving the .exe, just click the button again.
+2. Pick your `Soulear-…` or `HNDEC_…` network and click **Verbinden**.
+3. **Firewall, first time only (Soulear).** The camera answers commands, but Windows silently drops its video: it arrives unsolicited on a UDP port, and Windows doesn't prompt for UDP. After a few seconds without video, the app shows a banner with **„Firewall-Freigabe einrichten"**. One admin confirmation adds a narrow inbound rule named *Otoscope (Kamera-Video)*: this .exe only, UDP only, local subnet only. The rule is tied to the file's path, so after moving the .exe, just click the button again.
 
 While connected, the laptop has no internet: the camera's Wi-Fi is a closed network.
 

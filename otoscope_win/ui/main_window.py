@@ -15,8 +15,8 @@ from .. import firewall, storage
 from ..compose import compose
 from ..protocol import DevInfo
 from ..recorder import Recording
-from ..session import CameraSession
-from ..wifi import LocationAccessDenied, Wifi, WifiError, WifiSwitcher, soulear_networks
+from ..cameras import create_session
+from ..wifi import LocationAccessDenied, Wifi, WifiError, WifiSwitcher, camera_networks
 from .camera_page import CameraPage
 from .connect_page import ConnectPage
 from .widgets import Background, CameraView, SessionBridge
@@ -67,7 +67,7 @@ class FullscreenWindow(QWidget):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, wifi_factory=Wifi, session_factory=CameraSession) -> None:
+    def __init__(self, wifi_factory=Wifi, session_factory=create_session) -> None:
         """The factories are seams for tests: no real Wi-Fi, a fake camera."""
         super().__init__()
         self._session_factory = session_factory
@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
         self._bridge.frame_ready.connect(self._on_frame)
         self._bridge.devinfo_changed.connect(self._on_devinfo)
         self._bridge.led_changed.connect(lambda on: self.camera.set_light(on))
-        self._session: CameraSession | None = None
+        self._session = None
         self._connected_at = 0.0
         self._ssid = ""
         self._recording: Recording | None = None
@@ -191,7 +191,7 @@ class MainWindow(QMainWindow):
             return
         self.connect_page.show_location_hint(False)
         networks, current = result
-        cameras = soulear_networks(networks)
+        cameras = camera_networks(networks)
         log.info("scan: %d networks, cameras: %s, current: %s", len(networks), [c.ssid for c in cameras], current)
         self.connect_page.set_networks(cameras, current.ssid if current else None)
         self.connect_page.set_status(
@@ -222,7 +222,8 @@ class MainWindow(QMainWindow):
         self.camera.set_diagnostics("")
         self.camera.view.clear("Warte auf Kamera …")
         self.camera.hide_firewall_banner()
-        self._session = self._session_factory(self._bridge)
+        self._session = self._session_factory(self._bridge, ssid)
+        self.camera.set_light_available(getattr(self._session, "supports_led", True))
         self._session.start()
         self._connected_at = time.monotonic()
         self._stack.setCurrentWidget(self.camera)

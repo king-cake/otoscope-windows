@@ -1,7 +1,7 @@
 """Windows Wi-Fi control through the Native Wifi API (wlanapi.dll).
 
 Language-independent, unlike parsing ``netsh`` output. Covers what the app
-needs: scan for ``Soulear-`` access points, join an open one through a
+needs: scan for camera access points (``Soulear-``, ``HNDEC_``), join an open one through a
 temporary profile, and put the previous connection back afterwards.
 """
 
@@ -17,7 +17,8 @@ from xml.sax.saxutils import escape
 
 log = logging.getLogger(__name__)
 
-SSID_PREFIX = "Soulear-"
+# Soulear (i4season) and HND NE3 cameras. See cameras.create_session.
+SSID_PREFIXES = ("soulear-", "hndec_")
 
 ERROR_SUCCESS = 0
 ERROR_ACCESS_DENIED = 5
@@ -52,11 +53,11 @@ class Connection:
     profile: str
 
 
-def soulear_networks(networks: list[WifiNetwork]) -> list[WifiNetwork]:
+def camera_networks(networks: list[WifiNetwork]) -> list[WifiNetwork]:
     """Camera APs only, one entry per SSID (strongest), strongest first."""
     best: dict[str, WifiNetwork] = {}
     for n in networks:
-        if n.ssid.lower().startswith(SSID_PREFIX.lower()):
+        if n.ssid.lower().startswith(SSID_PREFIXES):
             if n.ssid not in best or n.signal > best[n.ssid].signal:
                 best[n.ssid] = n
     return sorted(best.values(), key=lambda n: -n.signal)

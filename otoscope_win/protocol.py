@@ -92,7 +92,7 @@ class DevInfo:
     product: str
     firmware: str
     ssid: str
-    battery_percent: int
+    battery_percent: int | None
 
 
 def parse_devinfo(payload: bytes) -> DevInfo | None:
