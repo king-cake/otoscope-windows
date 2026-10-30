@@ -78,7 +78,7 @@ The accelerometer reads **64 counts per g**: over 400 packets of a hand-held cam
 
 The camera computes the roll angle itself (offset 18). It follows `atan2(z, -y) + 2.6°` (circular fit over the same packets, R = 0.978, no time lag), so it is `y`/`z` turned into degrees, wrapped into [-360, 0). The vendor app uses this value directly (`T0.g.b` reads those two bytes as a signed short) and adds a mode-dependent offset.
 
-Our rotation is `(angle + 180) mod 360`. The sign and the half turn were picked from a handful of poses (the green tip is always at the left edge of the picture, so the picture is fixed to the camera and has to be turned by the roll). They are **not** confirmed against a rotating picture yet; the single place is `rotation_degrees` in `otoscope_win/beken.py` and `BekenProtocol.rotationDegrees` in the Android app.
+The apps use the angle as the picture rotation unchanged: `angle mod 360` (`rotation_degrees` in `otoscope_win/beken.py`, `BekenProtocol.rotationDegrees` in the Android app). A first guess with an extra half turn (`angle + 180`) showed the picture upside down on a phone; without it the picture was upright in the pose that was tried (camera angle about -90 degrees, lens horizontal, the camera held as for an ear). The green tip is always at the left edge of the picture, so the picture is fixed to the camera and has to be turned by the roll. Other roll angles were not compared systematically against the picture.
 
 ## Vendor app internals (for reference)
 

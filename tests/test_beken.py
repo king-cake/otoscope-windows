@@ -70,11 +70,11 @@ def test_sensor_axes_are_signed_bytes_with_noise_between():
     assert math.sqrt(sum(v * v for v in (-1, -6, -62))) == pytest.approx(64, rel=0.05)
 
 
-def test_rotation_is_the_cameras_own_angle_plus_half_a_turn():
-    assert b.rotation_degrees(-180) == 0
-    assert b.rotation_degrees(-95) == 85
-    assert b.rotation_degrees(-6) == 174
-    assert b.rotation_degrees(-360) == 180
+def test_rotation_is_the_cameras_own_angle():
+    assert b.rotation_degrees(-89) == 271
+    assert b.rotation_degrees(-95) == 265
+    assert b.rotation_degrees(-6) == 354
+    assert b.rotation_degrees(-360) == 0
 
 
 def test_parse_info_reads_the_camera_json():
@@ -127,7 +127,7 @@ def test_session_streams_frames_with_rotation(camera):
         assert rec.got_frames.wait(5), "no frames arrived"
         frame, rotation = rec.frames[-1]
         assert frame.jpeg == JPEG and (frame.width, frame.height) == (480, 480)
-        assert rotation == b.rotation_degrees(-95) == 85
+        assert rotation == b.rotation_degrees(-95) == 265
         assert rec.devinfos[0].product == "HND-NE3"
         assert session.devinfo.firmware == "1.0.0"
         assert not session.supports_led

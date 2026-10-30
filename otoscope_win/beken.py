@@ -127,7 +127,7 @@ def parse_angle(packet: bytes) -> int | None:
 
 
 def rotation_degrees(angle: int) -> float:
-    """Image rotation in degrees from the camera's own roll angle. The sign and
-    the 180 degree offset were chosen from a few poses and are not confirmed
-    against the picture."""
-    return (angle + 180) % 360.0
+    """Image rotation in degrees from the camera's own roll angle, which is
+    passed straight through. Checked on a real camera: with an extra half turn
+    the picture stands on its head."""
+    return angle % 360.0
